@@ -10,15 +10,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationManagerCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -26,6 +21,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import com.vone.qrcode.R;
 import com.vone.vmq.util.Constant;
@@ -35,7 +34,6 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
-import java.util.Set;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -45,9 +43,11 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity{
 
+    private static final int REQ_PERM_NOTIFICATION = 11005;
 
     private TextView txthost;
     private TextView txtkey;
+    private TextView txttdid;
 
     private boolean isOk = false;
     private static String TAG = "MainActivity";
@@ -68,12 +68,9 @@ public class MainActivity extends AppCompatActivity{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
-
         txthost = (TextView) findViewById(R.id.txt_host);
         txtkey = (TextView) findViewById(R.id.txt_key);
-
-
+        txttdid = (TextView) findViewById(R.id.txt_tdid);
 
         //检测通知使用权是否启用
         if (!isNotificationListenersEnabled()) {
@@ -83,7 +80,12 @@ public class MainActivity extends AppCompatActivity{
         //重启监听服务
         toggleNotificationListenerService(this);
 
-
+        // Android 13+ 请求通知权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_PERM_NOTIFICATION);
+            }
+        }
 
         //读入保存的配置数据并显示
         SharedPreferences read = getSharedPreferences("vone", MODE_PRIVATE);
@@ -91,14 +93,15 @@ public class MainActivity extends AppCompatActivity{
         key = read.getString("key", "");
         tdid = read.getString("tdid", "");
 
-        if (host!=null && key!=null && tdid!=null && host!="" && key!="" && tdid!=""){
+        if (!TextUtils.isEmpty(host) && !TextUtils.isEmpty(key) && !TextUtils.isEmpty(tdid)){
             txthost.setText(" 通知地址："+host);
+            txttdid.setText(" 商户编号："+tdid);
             txtkey.setText(" 通讯密钥："+key);
             isOk = true;
         }
 
 
-        Toast.makeText(MainActivity.this, "v免签开源免费免签系统 v1.8.1", Toast.LENGTH_SHORT).show();
+        Toast.makeText(MainActivity.this, "网程码支付 v2.0.0", Toast.LENGTH_SHORT).show();
 
         notifyEvent(null,"收款监听中...");
         startDate = new Date().getTime();
@@ -232,6 +235,7 @@ public class MainActivity extends AppCompatActivity{
                 }
                 //将扫描出的信息显示出来
                 txthost.setText(" 通知地址："+tmp[0]);
+                txttdid.setText(" 商户编号："+tmp[1]);
                 txtkey.setText(" 通讯密钥："+tmp[2]);
                 host = tmp[0];
                 tdid = tmp[1];
@@ -241,7 +245,7 @@ public class MainActivity extends AppCompatActivity{
                 editor.putString("host", host);
                 editor.putString("tdid", tdid);
                 editor.putString("key", key);
-                editor.commit();
+                editor.apply();
 
             }
         });
@@ -250,7 +254,7 @@ public class MainActivity extends AppCompatActivity{
     }
     //检测心跳
     public void doStart(View view) {
-        if (isOk==false){
+        if (!isOk){
             Toast.makeText(MainActivity.this, "请您先配置!", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -298,21 +302,17 @@ public class MainActivity extends AppCompatActivity{
             mNotification = builder
                     .setSmallIcon(R.mipmap.gugu)
                     .setTicker("这是一条测试推送信息，如果程序正常，则会提示监听权限正常")
-                    .setContentTitle("GuGu收款")
+                    .setContentTitle("网程码支付")
                     .setContentText("这是一条测试推送信息，如果程序正常，则会提示监听权限正常")
                     .build();
         }else{
             mNotification = new Notification.Builder(MainActivity.this)
                     .setSmallIcon(R.mipmap.gugu)
                     .setTicker("这是一条测试推送信息，如果程序正常，则会提示监听权限正常")
-                    .setContentTitle("GuGu收款")
+                    .setContentTitle("网程码支付")
                     .setContentText("这是一条测试推送信息，如果程序正常，则会提示监听权限正常")
                     .build();
         }
-
-        //Toast.makeText(MainActivity.this, "已推送信息，如果权限，那么将会有下一条提示！", Toast.LENGTH_SHORT).show();
-
-
 
         mNotificationManager.notify(id++, mNotification);
     }
@@ -367,7 +367,7 @@ public class MainActivity extends AppCompatActivity{
             startActivity(intent);
             return true;
 
-        } catch (ActivityNotFoundException e) {//普通情况下找不到的时候需要再特殊处理找一次
+        } catch (ActivityNotFoundException e) {
             try {
                 Intent intent = new Intent();
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -395,15 +395,15 @@ public class MainActivity extends AppCompatActivity{
         try {
             md5 = MessageDigest.getInstance("MD5");
             byte[] bytes = md5.digest(string.getBytes());
-            String result = "";
+            StringBuilder result = new StringBuilder();
             for (byte b : bytes) {
                 String temp = Integer.toHexString(b & 0xff);
                 if (temp.length() == 1) {
-                    temp = "0" + temp;
+                    result.append("0");
                 }
-                result += temp;
+                result.append(temp);
             }
-            return result;
+            return result.toString();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
@@ -447,6 +447,7 @@ public class MainActivity extends AppCompatActivity{
 
             //将扫描出的信息显示出来
             txthost.setText(" 通知地址："+tmp[0]);
+            txttdid.setText(" 商户编号："+tmp[1]);
             txtkey.setText(" 通讯密钥："+tmp[2]);
             host = tmp[0];
             tdid = tmp[1];
@@ -456,7 +457,7 @@ public class MainActivity extends AppCompatActivity{
             editor.putString("host", host);
             editor.putString("tdid", tdid);
             editor.putString("key", key);
-            editor.commit();
+            editor.apply();
 
         }
     }
@@ -465,23 +466,23 @@ public class MainActivity extends AppCompatActivity{
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case Constant.REQ_PERM_CAMERA:
-                // 摄像头权限申请
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // 获得授权
                     startQrCode(null);
                 } else {
-                    // 被禁止授权
                     Toast.makeText(MainActivity.this, "请至权限中心打开本应用的相机访问权限", Toast.LENGTH_LONG).show();
                 }
                 break;
             case Constant.REQ_PERM_EXTERNAL_STORAGE:
-                // 文件读写权限申请
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // 获得授权
                     startQrCode(null);
                 } else {
-                    // 被禁止授权
                     Toast.makeText(MainActivity.this, "请至权限中心打开本应用的文件读写权限", Toast.LENGTH_LONG).show();
+                }
+                break;
+            case REQ_PERM_NOTIFICATION:
+                // Android 13+ 通知权限回调
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(MainActivity.this, "通知权限已授予", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }

@@ -13,8 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Step 1: Use JDK 17 for Android SDK tools (sdkmanager requires JDK 17+)
-    - name: Set up JDK 17 for SDK tools
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -25,15 +24,8 @@ jobs:
 
     - name: Install Build Tools and Platform
       run: |
-        sdkmanager "build-tools;26.0.0"
-        sdkmanager "platforms;android-26"
-
-    # Step 2: Switch to JDK 8 for Gradle build (project uses old AGP 3.1.0)
-    - name: Set up JDK 8 for Gradle build
-      uses: actions/setup-java@v4
-      with:
-        java-version: '8'
-        distribution: 'temurin'
+        sdkmanager "build-tools;33.0.2"
+        sdkmanager "platforms;android-33"
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew

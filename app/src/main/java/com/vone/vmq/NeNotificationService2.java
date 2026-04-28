@@ -10,20 +10,18 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
-import android.support.v4.app.NotificationCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.core.app.NotificationCompat;
+
 import java.io.IOException;
-import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -40,28 +38,29 @@ public class NeNotificationService2  extends NotificationListenerService {
     private PowerManager.WakeLock mWakeLock = null;
 
 
-    //申请设备电源锁
     @SuppressLint("InvalidWakeLockTag")
     public void acquireWakeLock(Context context) {
         if (null == mWakeLock)
         {
             PowerManager pm = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
-            mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK|PowerManager.ON_AFTER_RELEASE, "WakeLock");
+            mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK|PowerManager.ON_AFTER_RELEASE, "QrPay:WakeLock");
             if (null != mWakeLock)
             {
-                mWakeLock.acquire();
+                mWakeLock.acquire(10*60*1000L /*10 minutes*/);
             }
         }
     }
-    //释放设备电源锁
+
     public void releaseWakeLock() {
         if (null != mWakeLock)
         {
-            mWakeLock.release();
+            if (mWakeLock.isHeld()) {
+                mWakeLock.release();
+            }
             mWakeLock = null;
         }
     }
-    //心跳进程
+
     public void initAppHeart(){
         Log.d(TAG, "开始启动心跳线程");
         if (newThread!=null){
@@ -79,7 +78,16 @@ public class NeNotificationService2  extends NotificationListenerService {
                     key = read.getString("key", "");
                     tdid = read.getString("tdid", "");
 
-                    //这里写入子线程需要做的工作
+                    // 配置为空时跳过请求，避免发送无效URL
+                    if (TextUtils.isEmpty(host) || TextUtils.isEmpty(key) || TextUtils.isEmpty(tdid)) {
+                        try {
+                            Thread.sleep(30*1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        continue;
+                    }
+
                     String t = String.valueOf(new Date().getTime());
                     String sign = md5(tdid + t + key);
 
@@ -97,7 +105,6 @@ public class NeNotificationService2  extends NotificationListenerService {
                                 }
                             });
                         }
-                        //请求成功执行的方法
                         @Override
                         public void onResponse(Call call, Response response) throws IOException {
                             Log.d(TAG, "onResponse heard: "+response.body().string());
@@ -113,13 +120,12 @@ public class NeNotificationService2  extends NotificationListenerService {
             }
         });
 
-        newThread.start(); //启动线程
+        newThread.start();
     }
 
 
 
 
-    //当收到一条消息的时候回调，sbn是收到的消息
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         Log.d(TAG, "接受到通知消息");
@@ -203,15 +209,14 @@ public class NeNotificationService2  extends NotificationListenerService {
         }
 
     }
-    //当移除一条消息的时候回调，sbn是被移除的消息
+
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
 
     }
-    //当连接成功时调用，一般在开启监听后会回调一次该方法
+
     @Override
     public void onListenerConnected() {
-        //开启心跳线程
         initAppHeart();
 
         Handler handlerThree = new Handler(Looper.getMainLooper());
@@ -273,16 +278,28 @@ public class NeNotificationService2  extends NotificationListenerService {
         }
 
     }
+
+    /**
+     * MD5签名（修复前导零丢失BUG）
+     * 旧版使用 BigInteger.toString(16) 会丢失前导零，
+     * 新版逐字节转换并补零，确保始终返回32位十六进制字符串
+     */
     public static String md5(String string) {
         if (TextUtils.isEmpty(string)) {
             return "";
         }
-        MessageDigest digest;
-
         try {
-            digest = MessageDigest.getInstance("MD5");
-            digest.update(string.getBytes());
-            return new BigInteger(1, digest.digest()).toString(16);
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            byte[] bytes = md5.digest(string.getBytes());
+            StringBuilder result = new StringBuilder();
+            for (byte b : bytes) {
+                String temp = Integer.toHexString(b & 0xff);
+                if (temp.length() == 1) {
+                    result.append("0");
+                }
+                result.append(temp);
+            }
+            return result.toString();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return "";
