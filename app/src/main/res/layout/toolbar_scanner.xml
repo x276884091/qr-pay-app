@@ -42,4 +42,4 @@
             android:text="相册"
             android:textColor="@android:color/white" />
     </RelativeLayout>
-</android.support.v7.widget.Toolbar>
+</androidx.appcompat.widget.Toolbar>
