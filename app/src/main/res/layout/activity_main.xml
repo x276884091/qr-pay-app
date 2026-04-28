@@ -21,10 +21,10 @@
 
     <TextView
         android:paddingBottom="5dp"
-        android:id="@+id/txt_tdid"
+        android:id="@+id/txt_pid"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text=" 商户编号：请扫码配置" />
+        android:text=" 商户PID：请扫码配置" />
 
     <TextView
         android:paddingBottom="20dp"

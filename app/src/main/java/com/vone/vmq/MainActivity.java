@@ -47,14 +47,14 @@ public class MainActivity extends AppCompatActivity{
 
     private TextView txthost;
     private TextView txtkey;
-    private TextView txttdid;
+    private TextView txtpid;
 
     private boolean isOk = false;
     private static String TAG = "MainActivity";
 
     private static String host;
     private static String key;
-    private static String tdid;
+    private static String pid;
 
     private long startDate;
 
@@ -70,7 +70,7 @@ public class MainActivity extends AppCompatActivity{
 
         txthost = (TextView) findViewById(R.id.txt_host);
         txtkey = (TextView) findViewById(R.id.txt_key);
-        txttdid = (TextView) findViewById(R.id.txt_tdid);
+        txtpid = (TextView) findViewById(R.id.txt_pid);
 
         //检测通知使用权是否启用
         if (!isNotificationListenersEnabled()) {
@@ -91,12 +91,12 @@ public class MainActivity extends AppCompatActivity{
         SharedPreferences read = getSharedPreferences("vone", MODE_PRIVATE);
         host = read.getString("host", "");
         key = read.getString("key", "");
-        tdid = read.getString("tdid", "");
+        pid = read.getString("pid", "");
 
-        if (!TextUtils.isEmpty(host) && !TextUtils.isEmpty(key) && !TextUtils.isEmpty(tdid)){
+        if (!TextUtils.isEmpty(host) && !TextUtils.isEmpty(key) && !TextUtils.isEmpty(pid)){
             txthost.setText(" 通知地址："+host);
-            txttdid.setText(" 商户编号："+tdid);
-            txtkey.setText(" 通讯密钥："+key);
+            txtpid.setText(" 商户PID："+pid);
+            txtkey.setText(" 通讯密钥："+maskKey(key));
             isOk = true;
         }
 
@@ -190,6 +190,10 @@ public class MainActivity extends AppCompatActivity{
     //手动配置
     public void doInput(View v){
         final EditText inputServer = new EditText(this);
+        // 如果已配置，回显当前参数
+        if (!TextUtils.isEmpty(host) && !TextUtils.isEmpty(pid) && !TextUtils.isEmpty(key)) {
+            inputServer.setText(host + "/" + pid + "/" + key);
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("请输入配置数据").setView(inputServer)
                 .setNegativeButton("取消", null);
@@ -208,7 +212,7 @@ public class MainActivity extends AppCompatActivity{
                 String sign = md5(tmp[1] + t + tmp[2]);
 
                 OkHttpClient okHttpClient = new OkHttpClient();
-                Request request = new Request.Builder().url("http://"+tmp[0]+"/appHeart?tdid="+tmp[1]+"&t="+t+"&sign="+sign).method("GET",null).build();
+                Request request = new Request.Builder().url("http://"+tmp[0]+"/appHeart?pid="+tmp[1]+"&t="+t+"&sign="+sign).method("GET",null).build();
                 Call call = okHttpClient.newCall(request);
                 call.enqueue(new Callback() {
                     @Override
@@ -229,15 +233,15 @@ public class MainActivity extends AppCompatActivity{
                 }
                 //将扫描出的信息显示出来
                 txthost.setText(" 通知地址："+tmp[0]);
-                txttdid.setText(" 商户编号："+tmp[1]);
-                txtkey.setText(" 通讯密钥："+tmp[2]);
+                txtpid.setText(" 商户PID："+tmp[1]);
+                txtkey.setText(" 通讯密钥："+maskKey(tmp[2]));
                 host = tmp[0];
-                tdid = tmp[1];
+                pid = tmp[1];
                 key = tmp[2];
 
                 SharedPreferences.Editor editor = getSharedPreferences("vone", MODE_PRIVATE).edit();
                 editor.putString("host", host);
-                editor.putString("tdid", tdid);
+                editor.putString("pid", pid);
                 editor.putString("key", key);
                 editor.apply();
 
@@ -255,10 +259,10 @@ public class MainActivity extends AppCompatActivity{
 
 
         String t = String.valueOf(new Date().getTime());
-        String sign = md5(tdid + t + key);
+        String sign = md5(pid + t + key);
 
         OkHttpClient okHttpClient = new OkHttpClient();
-        Request request = new Request.Builder().url("http://"+host+"/appHeart?tdid="+tdid+"&t="+t+"&sign="+sign).method("GET",null).build();
+        Request request = new Request.Builder().url("http://"+host+"/appHeart?pid="+pid+"&t="+t+"&sign="+sign).method("GET",null).build();
         Call call = okHttpClient.newCall(request);
         call.enqueue(new Callback() {
             @Override
@@ -381,6 +385,19 @@ public class MainActivity extends AppCompatActivity{
 
 
 
+    private String maskKey(String key) {
+        if (key == null || key.length() <= 6) {
+            return key;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(key.substring(0, 3));
+        for (int i = 0; i < key.length() - 6; i++) {
+            sb.append("*");
+        }
+        sb.append(key.substring(key.length() - 3));
+        return sb.toString();
+    }
+
     public static String md5(String string) {
         if (TextUtils.isEmpty(string)) {
             return "";
@@ -424,7 +441,7 @@ public class MainActivity extends AppCompatActivity{
             String sign = md5(tmp[1] + t + tmp[2]);
 
             OkHttpClient okHttpClient = new OkHttpClient();
-            Request request = new Request.Builder().url("http://"+tmp[0]+"/appHeart?tdid="+tmp[1]+"&t="+t+"&sign="+sign).method("GET",null).build();
+            Request request = new Request.Builder().url("http://"+tmp[0]+"/appHeart?pid="+tmp[1]+"&t="+t+"&sign="+sign).method("GET",null).build();
             Call call = okHttpClient.newCall(request);
             call.enqueue(new Callback() {
                 @Override
@@ -441,15 +458,15 @@ public class MainActivity extends AppCompatActivity{
 
             //将扫描出的信息显示出来
             txthost.setText(" 通知地址："+tmp[0]);
-            txttdid.setText(" 商户编号："+tmp[1]);
-            txtkey.setText(" 通讯密钥："+tmp[2]);
+            txtpid.setText(" 商户PID："+tmp[1]);
+            txtkey.setText(" 通讯密钥："+maskKey(tmp[2]));
             host = tmp[0];
-            tdid = tmp[1];
+            pid = tmp[1];
             key = tmp[2];
 
             SharedPreferences.Editor editor = getSharedPreferences("vone", MODE_PRIVATE).edit();
             editor.putString("host", host);
-            editor.putString("tdid", tdid);
+            editor.putString("pid", pid);
             editor.putString("key", key);
             editor.apply();
 

@@ -33,7 +33,7 @@ public class NeNotificationService2  extends NotificationListenerService {
     private String TAG = "NeNotificationService2";
     private String host = "";
     private String key = "";
-    private String tdid = "";
+    private String pid = "";
     private Thread newThread = null;
     private PowerManager.WakeLock mWakeLock = null;
 
@@ -76,10 +76,10 @@ public class NeNotificationService2  extends NotificationListenerService {
                     SharedPreferences read = getSharedPreferences("vone", MODE_PRIVATE);
                     host = read.getString("host", "");
                     key = read.getString("key", "");
-                    tdid = read.getString("tdid", "");
+                    pid = read.getString("pid", "");
 
                     // 配置为空时跳过请求，避免发送无效URL
-                    if (TextUtils.isEmpty(host) || TextUtils.isEmpty(key) || TextUtils.isEmpty(tdid)) {
+                    if (TextUtils.isEmpty(host) || TextUtils.isEmpty(key) || TextUtils.isEmpty(pid)) {
                         try {
                             Thread.sleep(30*1000);
                         } catch (InterruptedException e) {
@@ -89,10 +89,10 @@ public class NeNotificationService2  extends NotificationListenerService {
                     }
 
                     String t = String.valueOf(new Date().getTime());
-                    String sign = md5(tdid + t + key);
+                    String sign = md5(pid + t + key);
 
                     OkHttpClient okHttpClient = new OkHttpClient();
-                    Request request = new Request.Builder().url("http://"+host+"/appHeart?tdid="+tdid+"&t="+t+"&sign="+sign).method("GET",null).build();
+                    Request request = new Request.Builder().url("http://"+host+"/appHeart?pid="+pid+"&t="+t+"&sign="+sign).method("GET",null).build();
                     Call call = okHttpClient.newCall(request);
                     call.enqueue(new Callback() {
                         @Override
@@ -132,7 +132,7 @@ public class NeNotificationService2  extends NotificationListenerService {
         SharedPreferences read = getSharedPreferences("vone", MODE_PRIVATE);
         host = read.getString("host", "");
         key = read.getString("key", "");
-        tdid = read.getString("tdid", "");
+        pid = read.getString("pid", "");
 
 
         Notification notification = sbn.getNotification();
@@ -237,13 +237,13 @@ public class NeNotificationService2  extends NotificationListenerService {
         SharedPreferences read = getSharedPreferences("vone", MODE_PRIVATE);
         host = read.getString("host", "");
         key = read.getString("key", "");
-        tdid = read.getString("tdid", "");
+        pid = read.getString("pid", "");
 
         Log.d(TAG, "onResponse  push: 开始:"+type+"  "+price);
 
         String t = String.valueOf(new Date().getTime());
-        String sign = md5(type + "" + price + tdid + t + key);
-        String url = "http://"+host+"/appPush?tdid="+tdid+"&t="+t+"&type="+type+"&price="+price+"&sign="+sign;
+        String sign = md5(type + "" + price + pid + t + key);
+        String url = "http://"+host+"/appPush?pid="+pid+"&t="+t+"&type="+type+"&price="+price+"&sign="+sign;
         Log.d(TAG, "onResponse  push: 开始:"+url);
 
         OkHttpClient okHttpClient = new OkHttpClient();
